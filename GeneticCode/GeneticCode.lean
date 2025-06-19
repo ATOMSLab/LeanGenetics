@@ -75,9 +75,9 @@ deriving instance Repr for AminoAcid
 
 
 /- # General Definitions # -/
-def NucBase.isRNABase (b : NucBase) : Bool := b matches U | A | G | C
+def NucBase.isRNABase : Bool := n matches U | A | G | C
 
-def NucBase.isDNABase (b : NucBase) : Bool := b matches T | A | G | C
+def NucBase.isDNABase : Bool := n matches T | A | G | C
 
 def Redundant (f : α → β) : Prop := ¬ Injective f
 
