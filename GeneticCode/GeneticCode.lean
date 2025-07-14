@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 06/10/2025
+Last Updated: 06/25/2025
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -43,14 +43,15 @@ This file assumes that the reading frame begins at the first nucleotide always a
   5' → 3'. The function `dna_to_rna_template` takes the template strand as an input, so it is
   'read' backwards from the 3' → 5' direction e.g. `[A, G, T]` becomes `[A, C, U]`. Proof has to be
   given that the input is a valid DNA base or contains DNA bases in the functions:
-  `dna_to_rna_singlet`, `dna_to_rna_template`, and `dna_to_amino`. To prove this is true, include
-  `(by aesop)` at the end of the `#eval` function like this: `#eval dna_to_rna_template [A, G, T]
-  (by aesop). That particular input will output [A, C, U]` in the Lean InfoView.
+  `dna_to_rna_singlet`, `dna_to_rna_template`, `dna_to_rna_coding`, `dna_to_amino_template`, and
+  `dna_to_amino_coding`. To prove this is true, include `(by aesop)` at the end of the `#eval`
+  function like this: `#eval dna_to_rna_template [A, G, T] (by aesop)`. That particular input will
+  output `[A, C, U]` in the Lean InfoView.
 -/
 
 open Function Classical List
 
-variable (n : NucBase) (s : List NucBase)
+variable (n : NucBase) (s : List NucBase) (i : ℕ)
 
 /- # Definition of Nucleotide Base #
   U := Uracil
@@ -75,11 +76,11 @@ deriving instance Repr for AminoAcid
 
 
 /- # General Definitions # -/
-def NucBase.isRNABase (b : NucBase) : Bool := b matches U | A | G | C
+def NucBase.isRNABase : Bool := n matches U | A | G | C
 
-def NucBase.isDNABase (b : NucBase) : Bool := b matches T | A | G | C
+def NucBase.isDNABase : Bool := n matches T | A | G | C
 
-def Redundant (f : α → β) : Prop := ¬ Injective f
+def Redundant {α β} (f : α → β) : Prop := ¬ Injective f
 
 
 /- # DNA Function Definitions # -/
@@ -90,15 +91,25 @@ def dna_to_rna_singlet (n : NucBase) (hn : n.isDNABase) :=
   | G => C
   | C => G
 
+def dna_to_dna_singlet (n : NucBase) (hn : n.isDNABase) :=
+  match n with
+  | T => A
+  | A => T
+  | G => C
+  | C => G
+
 def dna_to_rna_template (hs : ∀ n ∈ s, n.isDNABase) : List NucBase :=
   (s.reverse).pmap dna_to_rna_singlet (by aesop)
 
 def dna_to_rna_coding (hs : ∀ n ∈ s, n.isDNABase) : List NucBase :=
   s.pmap dna_to_rna_singlet hs
 
+def dna_replication (hs : ∀ n ∈ s, n.isDNABase) : List NucBase :=
+  s.pmap dna_to_dna_singlet hs
+
 
 /- # RNA Function Definitions # -/
-def rna_to_amino_single_triplet : AminoAcid :=
+def rna_to_amino_single_triplet (s : List NucBase) : AminoAcid :=
   match s with
   | [U, U, U] => AminoAcid.F
   | [U, U, C] => AminoAcid.F
@@ -110,6 +121,7 @@ def rna_to_amino_single_triplet : AminoAcid :=
   | [C, U, G] => AminoAcid.L
   | [A, U, U] => AminoAcid.I
   | [A, U, C] => AminoAcid.I
+  | [A, U, A] => AminoAcid.I
   | [A, U, G] => AminoAcid.M
   | [G, U, U] => AminoAcid.V
   | [G, U, C] => AminoAcid.V
@@ -170,8 +182,18 @@ def rna_to_amino (L : List (List NucBase)) : List AminoAcid :=
   | [] => []
   | y :: ys => [rna_to_amino_single_triplet y] ++ rna_to_amino ys
 
+def rna_to_dna_singlet (n : NucBase) (hn : n.isRNABase) :=
+  match n with
+  | U => A
+  | A => T
+  | G => C
+  | C => G
 
-/- ### Main Function ###
+def rna_to_dna (hs : ∀ n ∈ s, n.isRNABase) : List NucBase :=
+  s.pmap rna_to_dna_singlet hs
+
+
+/- ### Main Functions ###
   dna_to_amino: Takes a list of DNA nucleic acids and converts them into a sequence of amino acids
 -/
 def dna_to_amino_template (hs : ∀ n ∈ s, n.isDNABase) : List AminoAcid :=
@@ -217,20 +239,13 @@ lemma singlet_iff (n₁ n₂ : {x // NucBase.isDNABase x}) :
     congr
 
 theorem length_conservation (hs : ∀ n ∈ s, n.isDNABase = True) :
-    s.length = (dna_to_rna_template s hs).length := by
-  induction s
-  · rfl
-  · simp only [length_cons, dna_to_rna_template, reverse_cons, pmap_append, pmap_reverse,
-      pmap_cons, pmap_nil, length_append, length_reverse, length_pmap,
-      length_cons, length_nil, zero_add]
-
-lemma length_equivalence (s₁ s₂ : List NucBase) (hs₁ : ∀ n₁ ∈ s₁, n₁.isDNABase = True)
-    (hs₂ : ∀ n₂ ∈ s₂, n₂.isDNABase = True) :
-    s₁.length = s₂.length ↔ (dna_to_rna_template s₁ hs₁).length =
-      (dna_to_rna_template s₂ hs₂).length := by
-  apply Iff.intro <;> intro h
-  · rw [← length_conservation s₁, ← length_conservation s₂, h]
-  · rw [length_conservation s₁, length_conservation s₂, h]
+    s.length = (dna_to_rna_template s hs).length ∧ s.length = (dna_to_rna_coding s hs).length := by
+  constructor <;>
+  · induction s
+    · rfl
+    · simp only [length_cons, dna_to_rna_coding, dna_to_rna_template, reverse_cons, pmap_append, pmap_reverse,
+        pmap_cons, pmap_nil, length_append, length_reverse, length_pmap,
+        length_cons, length_nil, zero_add]
 
 theorem injective_dna_to_rna_template :
     Injective (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_rna_template s s.prop)
@@ -256,10 +271,10 @@ theorem injective_dna_to_rna_template :
     have hj₂ : (pmap dna_to_rna_singlet s₂ hs₂).length =
         (pmap dna_to_rna_singlet s₂.reverse (by aesop)).length := by
       simp only [length_pmap, pmap_reverse, length_reverse]
-    rw [length_conservation s₁] at hx₁
+    rw [(length_conservation s₁ hs₁).1] at hx₁
     unfold dna_to_rna_template at hx₁
     rw [← hj₁] at hx₁
-    rw [length_conservation s₂] at hx₂
+    rw [(length_conservation s₂ hs₂).1] at hx₂
     unfold dna_to_rna_template at hx₂
     rw [← hj₂] at hx₂
     simp only [Subtype.mk.injEq] at hi
@@ -270,11 +285,46 @@ theorem injective_dna_to_rna_template :
     have hc₃ := hc₂ x hx₁ hx₂
     simp only [id_eq, eq_mpr_eq_cast, get_eq_getElem, getElem_pmap] at hc₃
     contradiction
-    all_goals assumption
   · intro h
     have h₁ := congrArg length h
     have h₂ : (dna_to_rna_template s₁ hs₁).length ≠ (dna_to_rna_template s₂ hs₂).length := by
-      rw [← length_conservation s₁, ← length_conservation s₂]
+      rw [← (length_conservation s₁ hs₁).1, ← (length_conservation s₂ hs₂).1]
+      exact hL
+    contradiction
+
+theorem injective_dna_to_rna_coding :
+    Injective (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_rna_coding s s.prop)
+    := by
+  rintro ⟨s₁, hs₁⟩ ⟨s₂, hs₂⟩
+  simp only [Subtype.mk.injEq]
+  contrapose
+  intro h
+  by_cases hL : s₁.length = s₂.length
+  · simp only [ext_get_iff, get_eq_getElem, not_and, not_forall] at h
+    have ⟨x, hx₁, hx₂, hx⟩ := h hL
+    have hi := singlet_iff ⟨s₁[x], (hs₁ s₁[x] (getElem_mem hx₁))⟩ ⟨s₂[x], (hs₂ s₂[x]
+      (getElem_mem hx₂))⟩
+    have h₀ : dna_to_rna_singlet s₁[x] (hs₁ s₁[x] (getElem_mem hx₁)) ≠ dna_to_rna_singlet s₂[x]
+        (hs₂ s₂[x] (getElem_mem hx₂)) := by
+      intro ht
+      have ht₀ : s₁[x] = s₂[x] := by aesop
+      contradiction
+    rw [(length_conservation s₁ hs₁).2] at hx₁
+    unfold dna_to_rna_coding at hx₁
+    rw [(length_conservation s₂ hs₂).2] at hx₂
+    unfold dna_to_rna_coding at hx₂
+    simp only [Subtype.mk.injEq] at hi
+    intro hc
+    simp only [dna_to_rna_coding] at hc
+    rw [ext_get_iff] at hc
+    obtain ⟨hc₁, hc₂⟩ := hc
+    have hc₃ := hc₂ x hx₁ hx₂
+    simp only [id_eq, eq_mpr_eq_cast, get_eq_getElem, getElem_pmap] at hc₃
+    contradiction
+  · intro h
+    have h₁ := congrArg length h
+    have h₂ : (dna_to_rna_coding s₁ hs₁).length ≠ (dna_to_rna_coding s₂ hs₂).length := by
+      rw [← (length_conservation s₁ hs₁).2, ← (length_conservation s₂ hs₂).2]
       exact hL
     contradiction
 
@@ -284,11 +334,20 @@ theorem redundant_rna_to_amino : Redundant rna_to_amino := by
   simp only [cons.injEq, reduceCtorEq, and_true, not_false_eq_true, exists_prop]
   exact ⟨rfl, of_decide_eq_false rfl⟩
 
-theorem redundant_genetic_code :
+theorem redundant_genetic_code_template :
     Redundant (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_amino_template s s.prop)
     := by
   simp only [Redundant, Injective, not_forall]
   use ⟨[A, A, A], by decide⟩, ⟨[G, A, A], by decide⟩
   simp only [Subtype.mk.injEq, cons.injEq, reduceCtorEq, and_true, not_false_eq_true,
+    exists_prop]
+  rfl
+
+theorem redundant_genetic_code_coding :
+  Redundant (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_amino_coding s s.prop)
+    := by
+  simp only [Redundant, Injective, not_forall]
+  use ⟨[A, A, A], by decide⟩, ⟨[A, A, G], by decide⟩
+  simp only [Subtype.mk.injEq, cons.injEq, reduceCtorEq, and_true, and_false, not_false_eq_true,
     exists_prop]
   rfl
