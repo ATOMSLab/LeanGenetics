@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 07/25/2025
+Last Updated: 08/23/2025
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -102,7 +102,7 @@ def dna_to_dna_singlet (n : NucBase) (hn : n.isDNABase) :=
   | C => G
 
 def dna_to_rna_template (hs : ∀ n ∈ s, n.isDNABase) : List NucBase :=
-  (s.reverse).pmap dna_to_rna_singlet (by aesop)
+  s.reverse.pmap dna_to_rna_singlet (by aesop)
 
 def dna_to_rna_coding (_ : ∀ n ∈ s, n.isDNABase) : List NucBase :=
   s.pmap T_to_U (by aesop)
@@ -193,7 +193,7 @@ def rna_to_dna_singlet (n : NucBase) (hn : n.isRNABase) :=
   | C => G
 
 def rna_to_dna (hs : ∀ n ∈ s, n.isRNABase) : List NucBase :=
-  s.pmap rna_to_dna_singlet hs
+  s.reverse.pmap rna_to_dna_singlet (by aesop)
 
 
 /- ### Main Functions ###
@@ -208,6 +208,10 @@ def dna_to_amino_coding (hs : ∀ n ∈ s, n.isDNABase) : List AminoAcid :=
 
 /- # Mutations # -/
 def point_mutation := s.set i n
+
+def frameshift_delete := s.eraseIdx i
+
+def frameshift_insert := s.insertIdx i n
 
 
 /- # Proofs # -/
@@ -310,10 +314,119 @@ theorem redundant_genetic_code_template :
   rfl
 
 theorem redundant_genetic_code_coding :
-  Redundant (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_amino_coding s s.prop)
+    Redundant (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_to_amino_coding s s.prop)
     := by
   simp only [Redundant, Injective, not_forall]
   use ⟨[A, A, A], by decide⟩, ⟨[A, A, G], by decide⟩
   simp only [Subtype.mk.injEq, cons.injEq, reduceCtorEq, and_true, and_false, not_false_eq_true,
     exists_prop]
   rfl
+
+theorem length_conservation_dna_rep (hs : ∀ n ∈ s, n.isDNABase = True) :
+    s.length = (dna_replication s hs).length := by
+  induction s
+  · rfl
+  · simp_all only [mem_cons, or_true, decide_true, implies_true, forall_true_left, length_cons]
+    rfl
+
+lemma injective_dna_singlet :
+    Injective (fun n : {x // NucBase.isDNABase x} ↦ dna_to_dna_singlet n n.prop) := by
+  rintro ⟨n, hn⟩ ⟨m, hm⟩
+  cases n <;> cases m <;>
+  repeat (first | intro h; simp_all | contradiction)
+
+theorem injective_dna_replication :
+    Injective (fun s : {x : List NucBase // ∀ n ∈ x, n.isDNABase} ↦ dna_replication s s.prop)
+    := by
+  rintro ⟨s₁, hs₁⟩ ⟨s₂, hs₂⟩
+  simp only [Subtype.mk.injEq]
+  intro h
+  have hL : s₁.length = s₂.length := by
+    rw [length_conservation_dna_rep s₁ hs₁, length_conservation_dna_rep s₂ hs₂]
+    exact congrArg length h
+  apply Array.ext.extAux s₁ s₂ hL
+  intro i hi₁ hi₂
+  unfold dna_replication at h
+  rw [ext_get_iff] at h
+  obtain ⟨h1, h2⟩ := h
+  simp only [length_pmap, get_eq_getElem, getElem_pmap, forall_true_left] at h2
+  have hn := by apply h2 i hi₁ hi₂
+  have hi := injective_dna_singlet
+  unfold Injective at hi
+  aesop
+
+theorem length_conserved_point : s.length = (point_mutation n s i).length := by
+  dsimp [point_mutation]
+  unfold List.set
+  cases s
+  · rfl
+  · simp only [length_cons]
+    split
+    · simp_all only [cons.injEq, length_cons, Nat.add_left_cancel_iff]
+    · simp_all only [cons.injEq, length_cons, length_set, Nat.add_left_cancel_iff]
+    · simp_all only [reduceCtorEq]
+
+theorem length_sub_one_frameshift_del (hn : i ≤ s.length - 1) :
+    s.length - 1 = (frameshift_delete s i).length := by
+  dsimp [frameshift_delete]
+  unfold eraseIdx
+  cases s
+  · rfl
+  · sorry
+
+lemma T_not_possible : T ∉ dna_to_rna_template s hs := by
+  intro h
+  unfold dna_to_rna_template dna_to_rna_singlet at h
+  aesop
+
+lemma length_conserved_reverse_trans : s.length = (rna_to_dna s hs).length := by
+  induction s
+  · rfl
+  · unfold rna_to_dna
+    simp only [length_cons, reverse_cons, pmap_append, pmap_reverse, pmap_cons, pmap_nil,
+      length_append, length_reverse, length_pmap, length_nil, zero_add, Nat.add_left_cancel_iff]
+
+lemma n_options : n = U ∨ n = A ∨ n = G ∨ n = T ∨ n = C := by
+  cases n <;> aesop
+
+theorem inverse :
+    s = rna_to_dna (dna_to_rna_template s hs)
+    (by intro n₂ hn₂; have h := T_not_possible; cases n₂ <;> aesop) := by
+  rw [ext_get_iff]
+  constructor
+  · rw [(length_conservation s hs).1]
+    exact length_conserved_reverse_trans (dna_to_rna_template s hs)
+  · dsimp [rna_to_dna, dna_to_rna_template]
+    simp only [pmap_reverse, reverse_reverse, length_pmap, getElem_pmap]
+    rintro n hn₁ hn₂
+    cases n_options s[n] <;> rename_i h
+    · simp_rw [h]
+      have U_not_DNA : U.isDNABase = False := by
+        simp only [decide_false]
+        rfl
+      have U_in : U ∈ s := by
+        rw [← h]
+        exact getElem_mem hn₂
+      aesop
+    · cases h
+      rename_i h
+      simp_rw [h]
+      rfl
+      rename_i h
+      cases h
+      rename_i h
+      simp_rw [h]
+      rfl
+      rename_i h
+      cases h
+      rename_i h
+      simp_rw [h]
+      rfl
+      rename_i h
+      simp_rw [h]
+      rfl
+
+
+/- # Miscellanious # -/
+def stop_dna_to_amino_coding (hs : ∀ n ∈ s, n.isDNABase) : List (List AminoAcid) :=
+  ((dna_to_rna_coding s hs).toChunks 3 |> rna_to_amino).splitOnP (· == AminoAcid.STOP)
