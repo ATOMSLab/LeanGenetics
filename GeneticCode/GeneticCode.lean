@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 08/23/2025
+Last Updated: 08/25/2025
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -361,10 +361,8 @@ theorem length_conserved_point : s.length = (point_mutation n s i).length := by
   cases s
   · rfl
   · simp only [length_cons]
-    split
-    · simp_all only [cons.injEq, length_cons, Nat.add_left_cancel_iff]
-    · simp_all only [cons.injEq, length_cons, length_set, Nat.add_left_cancel_iff]
-    · simp_all only [reduceCtorEq]
+    split <;>
+    simp_all only [cons.injEq, length_cons, length_set, Nat.add_left_cancel_iff, reduceCtorEq]
 
 theorem length_sub_one_frameshift_del (hn : i ≤ s.length - 1) :
     s.length - 1 = (frameshift_delete s i).length := by
@@ -389,7 +387,7 @@ lemma length_conserved_reverse_trans : s.length = (rna_to_dna s hs).length := by
 lemma n_options : n = U ∨ n = A ∨ n = G ∨ n = T ∨ n = C := by
   cases n <;> aesop
 
-theorem inverse :
+theorem transcription_inverse_reverse_trans :
     s = rna_to_dna (dna_to_rna_template s hs)
     (by intro n₂ hn₂; have h := T_not_possible; cases n₂ <;> aesop) := by
   rw [ext_get_iff]
@@ -407,24 +405,8 @@ theorem inverse :
       have U_in : U ∈ s := by
         rw [← h]
         exact getElem_mem hn₂
-      aesop
-    · cases h
-      rename_i h
-      simp_rw [h]
-      rfl
-      rename_i h
-      cases h
-      rename_i h
-      simp_rw [h]
-      rfl
-      rename_i h
-      cases h
-      rename_i h
-      simp_rw [h]
-      rfl
-      rename_i h
-      simp_rw [h]
-      rfl
+      simp_all only [decide_false, Bool.true_eq_false]
+    · obtain (h | h | h | h) := h <;> {simp_rw [h]; rfl}
 
 
 /- # Miscellanious # -/
