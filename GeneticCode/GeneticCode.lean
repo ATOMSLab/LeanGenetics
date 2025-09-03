@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 08/25/2025
+Last Updated: 09/02/2025
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -363,14 +363,6 @@ theorem length_conserved_point : s.length = (point_mutation n s i).length := by
   · simp only [length_cons]
     split <;>
     simp_all only [cons.injEq, length_cons, length_set, Nat.add_left_cancel_iff, reduceCtorEq]
-
-theorem length_sub_one_frameshift_del (hn : i ≤ s.length - 1) :
-    s.length - 1 = (frameshift_delete s i).length := by
-  dsimp [frameshift_delete]
-  unfold eraseIdx
-  cases s
-  · rfl
-  · sorry
 
 lemma T_not_possible : T ∉ dna_to_rna_template s hs := by
   intro h
