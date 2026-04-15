@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 09/02/2025
+Last Updated: 04/14/2026
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -220,10 +220,9 @@ theorem length_conservation (hs : ∀ n ∈ s, n.isDNABase = True) :
   constructor <;>
   · induction s
     · rfl
-    · simp only [mem_cons, or_true, decide_true, implies_true, forall_true_left, forall_eq_or_imp,
-        length_cons, map_cons, length_map, Nat.add_left_cancel_iff, dna_to_rna_coding,
-        dna_to_rna_template, reverse_cons, pmap_append, pmap_reverse, pmap_cons, pmap_nil,
-        length_append, length_reverse, length_pmap, length_nil, zero_add]
+    · simp only [length_cons, dna_to_rna_coding, dna_to_rna_template, reverse_cons, pmap_append,
+        pmap_reverse, pmap_cons, pmap_nil, length_append, length_reverse, length_pmap, length_nil,
+        zero_add]
 
 lemma injective_dna_to_rna_singlet :
     Injective (fun n : {x // NucBase.isDNABase x} ↦ dna_to_rna_singlet n n.prop) := by
@@ -252,21 +251,21 @@ theorem injective_dna_to_rna_template :
   have hL : s₁.length = s₂.length := by
     rw [(length_conservation s₁ hs₁).1, (length_conservation s₂ hs₂).1]
     exact congrArg length h
-  apply Array.ext.extAux s₁ s₂ hL
+  apply List.ext_get hL
   intro i hi₁ hi₂
   have hi₁' : i < s₁.reverse.length := by simp_all only [length_reverse]
   have hi₂' : i < s₂.reverse.length := by simp_all only [length_reverse]
   unfold dna_to_rna_template at h
   rw [ext_get_iff] at h
   obtain ⟨h1, h2⟩ := h
-  simp only [length_pmap, get_eq_getElem, getElem_pmap, forall_true_left] at h2
+  simp only [length_pmap, get_eq_getElem, getElem_pmap] at h2
   have hn := h2 i (by aesop) (by aesop)
   have hi := singlet_iff
   simp only [Subtype.forall, Subtype.mk.injEq] at hi
   have hj : s₁.reverse[i] = s₂.reverse[i] := by simp_all only [pmap_reverse, length_reverse,
     length_pmap, getElem_reverse, getElem_mem]
   apply getElem_of_eq
-  have hj' := Array.ext.extAux s₁.reverse s₂.reverse (by aesop) (by aesop)
+  have hj' := List.ext_get (l₁ := s₁.reverse) (l₂ := s₂.reverse) (by aesop) (by aesop)
   simp_all only [pmap_reverse, length_reverse, length_pmap, getElem_reverse, imp_self,
     implies_true, reverse_inj]
 
@@ -284,24 +283,22 @@ theorem injective_dna_to_rna_coding :
   have hL : s₁.length = s₂.length := by
     rw [(length_conservation s₁ hs₁).2, (length_conservation s₂ hs₂).2]
     exact congrArg length h
-  apply Array.ext.extAux s₁ s₂ hL
+  apply List.ext_get hL
   intro i hi₁ hi₂
   unfold dna_to_rna_coding at h
   rw [ext_get_iff] at h
   obtain ⟨h1, h2⟩ := h
-  simp only [length_pmap, get_eq_getElem, getElem_pmap, forall_true_left] at h2
+  simp only [length_pmap, get_eq_getElem, getElem_pmap] at h2
   have hn := by apply h2 i hi₁ hi₂
   have hi := injective_T_to_U
   unfold Injective at hi
-  simp only [length_pmap, forall_true_left, Subtype.forall, Subtype.mk.injEq, getElem_mem] at hi
-  apply hi
-  exact hn
-  repeat simp_all only [length_pmap, getElem_mem, forall_true_left]
+  simp only [Subtype.forall, Subtype.mk.injEq] at hi
+  exact hi _ (hs₁ _ (getElem_mem hi₁)) _ (hs₂ _ (getElem_mem hi₂)) hn
 
 theorem redundant_rna_to_amino : Redundant rna_to_amino := by
   simp only [Redundant, Injective, not_forall]
   use [[U, U, U]], [[U, U, C]]
-  simp only [cons.injEq, reduceCtorEq, and_true, not_false_eq_true, exists_prop]
+  simp only [cons.injEq, reduceCtorEq, and_true, exists_prop]
   exact ⟨rfl, of_decide_eq_false rfl⟩
 
 theorem redundant_genetic_code_template :
@@ -344,12 +341,12 @@ theorem injective_dna_replication :
   have hL : s₁.length = s₂.length := by
     rw [length_conservation_dna_rep s₁ hs₁, length_conservation_dna_rep s₂ hs₂]
     exact congrArg length h
-  apply Array.ext.extAux s₁ s₂ hL
+  apply List.ext_get hL
   intro i hi₁ hi₂
   unfold dna_replication at h
   rw [ext_get_iff] at h
   obtain ⟨h1, h2⟩ := h
-  simp only [length_pmap, get_eq_getElem, getElem_pmap, forall_true_left] at h2
+  simp only [length_pmap, get_eq_getElem, getElem_pmap] at h2
   have hn := by apply h2 i hi₁ hi₂
   have hi := injective_dna_singlet
   unfold Injective at hi
@@ -362,7 +359,7 @@ theorem length_conserved_point : s.length = (point_mutation n s i).length := by
   · rfl
   · simp only [length_cons]
     split <;>
-    simp_all only [cons.injEq, length_cons, length_set, Nat.add_left_cancel_iff, reduceCtorEq]
+    simp_all only [cons.injEq, length_cons, length_set, reduceCtorEq]
 
 lemma T_not_possible : T ∉ dna_to_rna_template s hs := by
   intro h
@@ -374,7 +371,7 @@ lemma length_conserved_reverse_trans : s.length = (rna_to_dna s hs).length := by
   · rfl
   · unfold rna_to_dna
     simp only [length_cons, reverse_cons, pmap_append, pmap_reverse, pmap_cons, pmap_nil,
-      length_append, length_reverse, length_pmap, length_nil, zero_add, Nat.add_left_cancel_iff]
+      length_append, length_reverse, length_pmap, length_nil, zero_add]
 
 lemma n_options : n = U ∨ n = A ∨ n = G ∨ n = T ∨ n = C := by
   cases n <;> aesop
