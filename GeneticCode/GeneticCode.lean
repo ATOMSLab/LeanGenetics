@@ -216,13 +216,18 @@ def frameshift_insert := s.insertIdx i n
 
 /- # Proofs # -/
 theorem template_coding_toRNA_equivalence (hs : ∀ n ∈ s, n.isDNABase) :
-    dna_to_rna_template s.reverse (by aesop) = dna_to_rna_coding (dna_replication s hs) (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn with ⟨n, hn, rfl⟩; aesop) := by
-  unfold dna_to_rna_template dna_to_rna_coding dna_to_rna_singlet T_to_U dna_replication dna_to_dna_singlet
+    dna_to_rna_template s.reverse (by aesop) = dna_to_rna_coding (dna_replication s hs) 
+    (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn 
+    with ⟨n, hn, rfl⟩; aesop) := by
+  unfold dna_to_rna_template dna_to_rna_coding dna_to_rna_singlet T_to_U dna_replication 
+    dna_to_dna_singlet
   simp only [reverse_reverse]
   aesop
 
 theorem template_coding_toAmino_equivalence (hs : ∀ n ∈ s, n.isDNABase) :
-    dna_to_amino_template s.reverse (by aesop) = dna_to_amino_coding (dna_replication s hs) (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn with ⟨n, hn, rfl⟩; aesop) := by
+    dna_to_amino_template s.reverse (by aesop) = dna_to_amino_coding (dna_replication s hs) 
+    (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn 
+    with ⟨n, hn, rfl⟩; aesop) := by
   unfold dna_to_amino_template dna_to_amino_coding
   rw [template_coding_toRNA_equivalence s hs]
 
