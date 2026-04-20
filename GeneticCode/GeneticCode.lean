@@ -1,6 +1,6 @@
 /-
 Authors: Colin Jones
-Last Updated: 04/14/2026
+Last Updated: 04/20/2026
 Description: Contains a function that allows the user to convert a coding strand of DNA into a
   sequence of RNA or amino acids. Proves the injectivity of mapping DNA to RNA and the redundancy
   (non-injectivity) of DNA and RNA to amino acid. Includes brief exploration of point mutations.
@@ -29,7 +29,7 @@ This file defines 2 functions called `codon` and `anticodon` that match a 3 lett
 * `dna_to_amino_coding`: Converts a template strand of DNA into its corresponding peptide chain
 
 ## Main Proofs
-* `template_coding_equivalence`: `dna_to_rna_template` applied to a list is equivalent to
+* `template_coding_toRNA_equivalence`: `dna_to_rna_template` applied to a list is equivalent to
     `dna_to_rna` applied to that list reversed
 * `length_conservation`: The length of the list is equal to the length of the output of
     `dna_to_rna_template` applied to that list
@@ -215,6 +215,17 @@ def frameshift_insert := s.insertIdx i n
 
 
 /- # Proofs # -/
+theorem template_coding_toRNA_equivalence (hs : ∀ n ∈ s, n.isDNABase) :
+    dna_to_rna_template s.reverse (by aesop) = dna_to_rna_coding (dna_replication s hs) (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn with ⟨n, hn, rfl⟩; aesop) := by
+  unfold dna_to_rna_template dna_to_rna_coding dna_to_rna_singlet T_to_U dna_replication dna_to_dna_singlet
+  simp only [reverse_reverse]
+  aesop
+
+theorem template_coding_toAmino_equivalence (hs : ∀ n ∈ s, n.isDNABase) :
+    dna_to_amino_template s.reverse (by aesop) = dna_to_amino_coding (dna_replication s hs) (by intro n hn; simp only [dna_replication, mem_pmap, dna_to_dna_singlet] at hn; rcases hn with ⟨n, hn, rfl⟩; aesop) := by
+  unfold dna_to_amino_template dna_to_amino_coding
+  rw [template_coding_toRNA_equivalence s hs]
+
 theorem length_conservation (hs : ∀ n ∈ s, n.isDNABase = True) :
     s.length = (dna_to_rna_template s hs).length ∧ s.length = (dna_to_rna_coding s hs).length := by
   constructor <;>
